@@ -1,0 +1,9 @@
+# Python specific files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Project related ignores
+offset.txt
+config.py
+log.txt
