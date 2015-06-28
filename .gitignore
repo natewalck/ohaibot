@@ -4,6 +4,11 @@ __pycache__/
 *$py.class
 
 # Project related ignores
+cache/
 offset.txt
 config.py
-log.txt
+*.log
+*.jpp
+*.jpeg
+*.png
+*.gif
