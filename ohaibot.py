@@ -80,8 +80,24 @@ def send_photo(chat_id, file_name):
 
 
 def get_redirect_url(url):
-    request = requests.get(url)
-    return request.url
+    response = requests.get(url)
+    return response.url
+
+
+def image_search(search_term):
+    url = "http://ajax.googleapis.com/ajax/services/search/images?v=1.0&q=" + search_term + "&start=0&safe=active"
+    response = requests.get(url).json()
+    try:
+        image_url = response['responseData']['results'][0]['unescapedUrl']
+        real_url = get_redirect_url(image_url)
+    except:
+        return None
+
+    if real_url.endswith('html') or real_url.endswith('php') or real_url.endswith('htm'):
+        image_url = response['responseData']['results'][1]['unescapedUrl']
+        return image_url
+    else:
+        return image_url
 
 
 def download_file(url):
@@ -136,11 +152,29 @@ def do_bot_stuff(update_id):
                 chat_id = message['chat']['id']
 
                 if messagetext == '/help':
-                    return_message = 'Command Options:\n\n'
+                    return_message = 'Query Options:\n\n'
+                    return_message = return_message + '/get search for this' + '\n\n'
+
+                    return_message = return_message + 'Command Options:\n\n'
                     for item in sorted(keyword_map):
                         return_message = return_message + '/' + item + '\n'
 
                     send_simple_message(chat_id, return_message)
+
+                if messagetext.startswith('/get'):
+                    message_parts = messagetext.split(' ')
+                    message_parts.pop(0)
+                    search_terms = ' '.join(message_parts)
+                    image_url = image_search(search_terms)
+                    if image_url:
+                        file_name = download_file(image_url)
+                        if file_name:
+                            send_photo(chat_id, file_name)
+                        else:
+                            send_simple_message(chat_id, "I have failed to find a picture for %s." % search_terms)
+                    else:
+                        send_simple_message(chat_id, "I have failed to find a picture for %s." % search_terms)
+
 
                 command = messagetext.strip('/')
                 if command in keyword_map:
