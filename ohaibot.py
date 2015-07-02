@@ -11,6 +11,7 @@ import requests
 import shutil
 import os.path
 from fake_useragent import UserAgent
+import re
 
 try:
     from config import token
@@ -103,6 +104,7 @@ def get_redirect_url(url):
 '''Search for an image on google. Grabs the first one, if it ends in html or php
  grab the next one in the array'''
 def image_search(search_term):
+    search_term = re.sub(r'\W+', '', search_term)
     url = "http://ajax.googleapis.com/ajax/services/search/images?v=1.0&q=" + search_term + "&start=0&safe=active"
     response = requests.get(url).json()
 
