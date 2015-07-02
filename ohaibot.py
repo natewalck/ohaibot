@@ -19,11 +19,13 @@ except:
 logging.basicConfig(filename='ohaibot.log',
                     format='%(asctime)s %(levelname)s %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S',
-                    level=logging.DEBUG)
+                    level=logging.INFO)
 
 bot_url = 'https://api.telegram.org/bot' + token + '/'
 offset_file = 'offset.txt'
 update_id = 0
+
+# Map of keywords to URLs, used for static content (non-searched)
 keyword_map = { 'cantbrain': 'https://dl.dropboxusercontent.com/u/11466/meme/cantbrain.jpg',
                 'fixit': 'https://dl.dropboxusercontent.com/u/11466/gifs/fixit.gif',
                 'trololo': 'https://dl.dropboxusercontent.com/u/11466/meme/trolololo.jpg',
@@ -47,16 +49,17 @@ keyword_map = { 'cantbrain': 'https://dl.dropboxusercontent.com/u/11466/meme/can
                 }
 
 
+'''Send a text only message, useful for help, feedback and errors'''
 def send_simple_message(chat_id, text):
     try:
         data = urllib.parse.urlencode({'chat_id': chat_id,
                                        'text': text})
         urllib.request.urlopen(bot_url + 'sendMessage', data.encode('utf-8'))
     except Exception as e:
-        logging.warning('Something went wrong when sending: ' + str(e))
-        return
+        logging.critical('Something went wrong when sending simple message: ' + str(e))
 
 
+''' Required for gifs, otherwise they will not be animated'''
 def send_document(chat_id, file_name):
     files = {'document': open(file_name, 'rb')}
     data = {'chat_id': str(chat_id)}
@@ -64,10 +67,11 @@ def send_document(chat_id, file_name):
     try:
         r = requests.post(bot_url + 'sendDocument', data=data, files=files)
     except:
-        logging.warning('failed to upload file!')
-        logging.warning(r.text)
+        logging.critical('failed to upload file!')
+        logging.critical(r.text)
 
 
+''' For sending photos only. If gif, use send_document'''
 def send_photo(chat_id, file_name):
     files = {'photo': open(file_name, 'rb')}
     data = {'chat_id': str(chat_id)}
@@ -75,51 +79,73 @@ def send_photo(chat_id, file_name):
     try:
         r = requests.post(bot_url + 'sendPhoto', data=data, files=files)
     except:
-        logging.warning('failed to upload file!')
-        logging.warning(r.text)
+        logging.critical('failed to upload file!')
+        logging.critical(r.text)
 
 
+'''Images on google like to use redirects, so get the destination url to use'''
 def get_redirect_url(url):
-    response = requests.get(url)
-    return response.url
+    try:
+        response = requests.get(url)
+        actual_url = response.url
+    except:
+        logging.info("Couldn't get URL")
+        actual_url = url
+
+    # Lets try to clean the URL up as well by removing all but netloc and path
+    url_object = urllib.parse.urlparse(actual_url)
+    url = url_object.scheme + "://" + url_object.netloc + url_object.path
+
+    return url
 
 
+'''Search for an image on google. Grabs the first one, if it ends in html or php
+ grab the next one in the array'''
 def image_search(search_term):
     url = "http://ajax.googleapis.com/ajax/services/search/images?v=1.0&q=" + search_term + "&start=0&safe=active"
     response = requests.get(url).json()
-    try:
-        image_url = response['responseData']['results'][0]['unescapedUrl']
-        real_url = get_redirect_url(image_url)
-    except:
-        return None
 
-    if real_url.endswith('html') or real_url.endswith('php') or real_url.endswith('htm'):
-        image_url = response['responseData']['results'][1]['unescapedUrl']
-        return image_url
+    if len(response['responseData']['results']) > 0:
+        logging.info("We have %s results, yay!" % len(response['responseData']['results']) )
+        for result in response['responseData']['results']:
+            image_url = result['unescapedUrl']
+            real_url = get_redirect_url(image_url)
+            if real_url.endswith('html') or real_url.endswith('php') or real_url.endswith('htm'):
+                logging.info("Could not get image url for %s" % real_url)
+                continue
+            else:
+                return_value = real_url
+                break
     else:
-        return image_url
+        logging.info("Couldn't find any results! *shrugs*")
+        return_value = None
+
+    logging.debug("return_value: %s" % return_value)
+    return return_value
 
 
+''' Downloads the given file url to the cache folder'''
 def download_file(url):
     file_name = url.split('/')[-1]
+    # todo create cache folder if it does not already exist.
     cache_folder = 'cache'
-    logging.info("File to download is %s" % file_name)
     if os.path.isfile(os.path.join(cache_folder, file_name)):
         logging.info('File already exists, skipping download')
         return os.path.join(cache_folder, file_name)
     else:
-        logging.info("Downloading %s" % file_name)
-        try:
-            response = requests.get(url, stream=True)
+        logging.info("Downloading %s" % url)
+        # try:
+        response = requests.get(url, stream=True)
+        if response.status_code == 200:
             with open(os.path.join('cache', file_name), 'wb') as out_file:
-                shutil.copyfileobj(response.raw, out_file)
-            del response
-            return os.path.join(cache_folder, file_name)
-        except:
-            logging.warning("Failed to download %s" % file_name)
-            return None
+                for chunk in response.iter_content(1024):
+                    out_file.write(chunk)
+        del response
+        file_path = os.path.join(cache_folder, file_name)
+        return file_path
 
 
+'''All bot logic happens here and calls out to functions'''
 def do_bot_stuff(update_id):
     try:
         data = urllib.parse.urlencode({'offset': format(update_id),
@@ -167,8 +193,13 @@ def do_bot_stuff(update_id):
                     search_terms = ' '.join(message_parts)
                     image_url = image_search(search_terms)
                     if image_url:
+                        logging.debug("Supposedly URL: %s" % image_url)
                         file_name = download_file(image_url)
-                        if file_name:
+                        logging.debug("file: %s" % file_name)
+                        # Try to be smart about the content type
+                        if file_name.endswith('gif'):
+                            send_document(chat_id, file_name)
+                        elif file_name.endswith('png') or file_name.endswith('jpg') or file_name.endswith('jpeg'):
                             send_photo(chat_id, file_name)
                         else:
                             send_simple_message(chat_id, "I have failed to find a picture for %s." % search_terms)
@@ -196,6 +227,7 @@ def do_bot_stuff(update_id):
     return update_id
 
 
+'''Main program loop, handles timing and long polling'''
 def main():
     # make sure the offset file exists and contains an integer
     try:
