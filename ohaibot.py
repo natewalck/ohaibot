@@ -10,6 +10,7 @@ import logging
 import requests
 import shutil
 import os.path
+from fake_useragent import UserAgent
 
 try:
     from config import token
@@ -127,6 +128,7 @@ def image_search(search_term):
 ''' Downloads the given file url to the cache folder'''
 def download_file(url):
     file_name = url.split('/')[-1]
+    ua = UserAgent()
     # todo create cache folder if it does not already exist.
     cache_folder = 'cache'
     if os.path.isfile(os.path.join(cache_folder, file_name)):
@@ -135,13 +137,16 @@ def download_file(url):
     else:
         logging.info("Downloading %s" % url)
         # try:
-        response = requests.get(url, stream=True)
+        response = requests.get(url, stream=True, headers = {'User-Agent': ua.chrome } )
         if response.status_code == 200:
             with open(os.path.join('cache', file_name), 'wb') as out_file:
                 for chunk in response.iter_content(1024):
                     out_file.write(chunk)
+                else:
+                    logging.critical("Couldn't download %s" % file_name)
         del response
         file_path = os.path.join(cache_folder, file_name)
+        logging.info("Downloaded %s" % file_path)
         return file_path
 
 
