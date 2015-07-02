@@ -138,16 +138,23 @@ def download_file(url):
         logging.info("Downloading %s" % url)
         # try:
         response = requests.get(url, stream=True, headers = {'User-Agent': ua.chrome } )
-        if response.status_code == 200:
-            with open(os.path.join('cache', file_name), 'wb') as out_file:
-                for chunk in response.iter_content(1024):
-                    out_file.write(chunk)
-                else:
-                    logging.critical("Couldn't download %s" % file_name)
+        fail = False
+        try:
+            if response.status_code == 200:
+                with open(os.path.join('cache', file_name), 'wb') as out_file:
+                    for chunk in response.iter_content(1024):
+                        out_file.write(chunk)
+                    else:
+                        logging.critical("Couldn't download %s" % file_name)
+        except:
+            fail = True
         del response
-        file_path = os.path.join(cache_folder, file_name)
-        logging.info("Downloaded %s" % file_path)
-        return file_path
+        if not fail:
+            file_path = os.path.join(cache_folder, file_name)
+            logging.info("Downloaded %s" % file_path)
+            return file_path
+        else:
+            return None
 
 
 '''All bot logic happens here and calls out to functions'''
@@ -200,13 +207,19 @@ def do_bot_stuff(update_id):
                     if image_url:
                         logging.debug("Supposedly URL: %s" % image_url)
                         file_name = download_file(image_url)
+                        if not file_name:
+                            logging.critical("%s does not exist" % file_name)
+
                         logging.debug("file: %s" % file_name)
                         # Try to be smart about the content type
-                        if file_name.endswith('gif'):
-                            send_document(chat_id, file_name)
-                        elif file_name.endswith('png') or file_name.endswith('jpg') or file_name.endswith('jpeg'):
-                            send_photo(chat_id, file_name)
-                        else:
+                        try:
+                            if file_name.endswith('gif'):
+                                send_document(chat_id, file_name)
+                            elif file_name.endswith('png') or file_name.endswith('jpg') or file_name.endswith('jpeg'):
+                                send_photo(chat_id, file_name)
+                            else:
+                                send_simple_message(chat_id, "I have failed to find a picture for %s." % search_terms)
+                        except:
                             send_simple_message(chat_id, "I have failed to find a picture for %s." % search_terms)
                     else:
                         send_simple_message(chat_id, "I have failed to find a picture for %s." % search_terms)
