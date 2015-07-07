@@ -106,9 +106,13 @@ def get_redirect_url(url):
 def image_search(search_term):
     search_term = re.sub(r'\W+', '', search_term)
     url = "http://ajax.googleapis.com/ajax/services/search/images?v=1.0&q=" + search_term + "&start=0&safe=active"
-    response = requests.get(url).json()
+    response = None
+    try:
+        response = requests.get(url).json()
+    except:
+        response = None
 
-    if len(response['responseData']['results']) > 0:
+    if response and len(response['responseData']['results']) > 0:
         logging.info("We have %s results, yay!" % len(response['responseData']['results']) )
         for result in response['responseData']['results']:
             image_url = result['unescapedUrl']
@@ -138,8 +142,12 @@ def download_file(url):
         return os.path.join(cache_folder, file_name)
     else:
         logging.info("Downloading %s" % url)
-        # try:
-        response = requests.get(url, stream=True, headers = {'User-Agent': ua.chrome } )
+        response = None
+        try:
+            response = requests.get(url, stream=True, headers = {'User-Agent': ua.chrome } )
+        except:
+            resposne = None
+
         fail = False
         try:
             if response.status_code == 200:
