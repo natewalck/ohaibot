@@ -107,6 +107,7 @@ def image_search(search_term):
     search_term = re.sub(r'\W+', '', search_term)
     url = "http://ajax.googleapis.com/ajax/services/search/images?v=1.0&q=" + search_term + "&start=0&safe=active"
     response = None
+    search_results = []
     try:
         response = requests.get(url).json()
     except:
@@ -121,14 +122,13 @@ def image_search(search_term):
                 logging.info("Could not get image url for %s" % real_url)
                 continue
             else:
-                return_value = real_url
-                break
+                search_results.append(real_url)
     else:
         logging.info("Couldn't find any results! *shrugs*")
-        return_value = None
 
-    logging.debug("return_value: %s" % return_value)
-    return return_value
+    logging.debug("Returning %s results" % len(search_results))
+
+    return search_results
 
 
 ''' Downloads the given file url to the cache folder'''
@@ -166,7 +166,7 @@ def download_file(url):
         else:
             return None
 
-
+'''This function should always return the help text'''
 def get_help(chat_id):
     return_message = 'Query Options:\n\n'
     return_message = return_message + '/get search for this' + '\n\n'
@@ -178,35 +178,43 @@ def get_help(chat_id):
     send_simple_message(chat_id, return_message)
 
 
-
+'''Gets and sends an image based on message text'''
 def get_image(chat_id, messagetext):
     message_parts = messagetext.split(' ')
     message_parts.pop(0)
     search_terms = ' '.join(message_parts)
-    image_url = image_search(search_terms)
-    if image_url:
-        logging.debug("Supposedly URL: %s" % image_url)
-        file_name = download_file(image_url)
-        if not file_name:
-            logging.critical("%s does not exist" % file_name)
+    search_results = image_search(search_terms)
+    image_sent = False
+    if search_results:
+        for image_url in search_results:
+            # break out of this loop if an image is successfully sent
+            if image_sent:
+                logging.info("Already sent an image, skip the rest of the results")
+                break
 
-        logging.debug("file: %s" % file_name)
-        # Try to be smart about the content type
-        try:
-            if file_name.endswith('gif'):
-                send_document(chat_id, file_name)
-            elif file_name.endswith('png') or file_name.endswith('jpg') or file_name.endswith('jpeg'):
-                send_photo(chat_id, file_name)
-                return True
-            else:
-                send_simple_message(chat_id, "I have failed to find a picture for %s." % search_terms)
-            return None 
-        except:
-            send_simple_message(chat_id, "I have failed to find a picture for %s." % search_terms)
-            return None 
+            logging.debug("Supposedly URL: %s" % image_url)
+            file_name = download_file(image_url)
+            if not file_name:
+                logging.critical("%s does not exist" % file_name)
+                continue
+
+            logging.debug("file: %s" % file_name)
+            # Try to be smart about the content type
+            try:
+                if file_name.endswith('gif'):
+                    send_document(chat_id, file_name)
+                    image_sent = True
+                elif file_name.endswith('png') or file_name.endswith('jpg') or file_name.endswith('jpeg'):
+                    send_photo(chat_id, file_name)
+                    image_sent = True
+                else:
+                    image_sent = False
+            except:
+                image_sent = False
     else:
-        send_simple_message(chat_id, "I have failed to find a picture for %s." % search_terms)
-        return None
+        image_sent = False
+
+    return image_sent, search_terms
 
 
 def get_static(chat_id, messagetext):
@@ -270,8 +278,12 @@ def do_bot_stuff(update_id):
                     get_help(chat_id)
                 # get a image via google image search API 
                 elif messagetext.startswith('/get'):
-                    result = get_image(chat_id, messagetext)
-                    logging.info("Got Image: %s" % result)
+                    result, term = get_image(chat_id, messagetext)
+                    if result:
+                        logging.info("Got Image: %s" % result)
+                    else:
+                        return_message = "Couldn't find result for %s" % term
+                        send_simple_message(chat_id, return_message)
                 # Is it a statically set item?
                 else:
                     result =  get_static(chat_id, messagetext)
