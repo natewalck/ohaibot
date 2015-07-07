@@ -167,6 +167,17 @@ def download_file(url):
             return None
 
 
+def get_help(chat_id):
+    return_message = 'Query Options:\n\n'
+    return_message = return_message + '/get search for this' + '\n\n'
+    
+    return_message = return_message + 'Command Options:\n\n'
+    for item in sorted(keyword_map):
+        return_message = return_message + '/' + item + '\n'
+    
+    send_simple_message(chat_id, return_message)
+
+
 '''All bot logic happens here and calls out to functions'''
 def do_bot_stuff(update_id):
     try:
@@ -200,16 +211,8 @@ def do_bot_stuff(update_id):
                 chat_id = message['chat']['id']
 
                 if messagetext == '/help':
-                    return_message = 'Query Options:\n\n'
-                    return_message = return_message + '/get search for this' + '\n\n'
-
-                    return_message = return_message + 'Command Options:\n\n'
-                    for item in sorted(keyword_map):
-                        return_message = return_message + '/' + item + '\n'
-
-                    send_simple_message(chat_id, return_message)
-
-                if messagetext.startswith('/get'):
+                    get_help(chat_id)
+                elif messagetext.startswith('/get'):
                     message_parts = messagetext.split(' ')
                     message_parts.pop(0)
                     search_terms = ' '.join(message_parts)
@@ -233,24 +236,23 @@ def do_bot_stuff(update_id):
                             send_simple_message(chat_id, "I have failed to find a picture for %s." % search_terms)
                     else:
                         send_simple_message(chat_id, "I have failed to find a picture for %s." % search_terms)
-
-
-                command = messagetext.strip('/')
-                if command in keyword_map:
-                    file_ext = keyword_map[command].split('.')[-1]
-                    if file_ext in ['jpg', 'jpeg', 'png']:
-                        file_name = download_file(keyword_map[command])
-                        logging.info("Sending photo %s" % file_name)
-                        send_photo(chat_id, file_name)
-                    elif file_ext in ['gif']:
-                        file_name = download_file(keyword_map[command])
-                        logging.info("Sending gif %s" % file_name)
-                        send_document(chat_id, file_name)
-                    else:
-                        return_message = get_redirect_url(keyword_map[command])
-                        send_simple_message(chat_id, return_message)
                 else:
-                    continue
+                    command = messagetext.strip('/')
+                    if command in keyword_map:
+                        file_ext = keyword_map[command].split('.')[-1]
+                        if file_ext in ['jpg', 'jpeg', 'png']:
+                            file_name = download_file(keyword_map[command])
+                            logging.info("Sending photo %s" % file_name)
+                            send_photo(chat_id, file_name)
+                        elif file_ext in ['gif']:
+                            file_name = download_file(keyword_map[command])
+                            logging.info("Sending gif %s" % file_name)
+                            send_document(chat_id, file_name)
+                        else:
+                            return_message = get_redirect_url(keyword_map[command])
+                            send_simple_message(chat_id, return_message)
+                    else:
+                        continue
 
     return update_id
 
