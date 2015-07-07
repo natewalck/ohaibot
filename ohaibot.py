@@ -178,6 +178,59 @@ def get_help(chat_id):
     send_simple_message(chat_id, return_message)
 
 
+
+def get_image(chat_id, messagetext):
+    message_parts = messagetext.split(' ')
+    message_parts.pop(0)
+    search_terms = ' '.join(message_parts)
+    image_url = image_search(search_terms)
+    if image_url:
+        logging.debug("Supposedly URL: %s" % image_url)
+        file_name = download_file(image_url)
+        if not file_name:
+            logging.critical("%s does not exist" % file_name)
+
+        logging.debug("file: %s" % file_name)
+        # Try to be smart about the content type
+        try:
+            if file_name.endswith('gif'):
+                send_document(chat_id, file_name)
+            elif file_name.endswith('png') or file_name.endswith('jpg') or file_name.endswith('jpeg'):
+                send_photo(chat_id, file_name)
+                return True
+            else:
+                send_simple_message(chat_id, "I have failed to find a picture for %s." % search_terms)
+            return None 
+        except:
+            send_simple_message(chat_id, "I have failed to find a picture for %s." % search_terms)
+            return None 
+    else:
+        send_simple_message(chat_id, "I have failed to find a picture for %s." % search_terms)
+        return None
+
+
+def get_static(chat_id, messagetext):
+    command = messagetext.strip('/')
+    if command in keyword_map:
+        file_ext = keyword_map[command].split('.')[-1]
+        if file_ext in ['jpg', 'jpeg', 'png']:
+            file_name = download_file(keyword_map[command])
+            logging.info("Sending photo %s" % file_name)
+            send_photo(chat_id, file_name)
+            return True
+        elif file_ext in ['gif']:
+            file_name = download_file(keyword_map[command])
+            logging.info("Sending gif %s" % file_name)
+            send_document(chat_id, file_name)
+            return True
+        else:
+            return_message = get_redirect_url(keyword_map[command])
+            send_simple_message(chat_id, return_message)
+            return True
+    else:
+        return None
+
+
 '''All bot logic happens here and calls out to functions'''
 def do_bot_stuff(update_id):
     try:
@@ -202,57 +255,28 @@ def do_bot_stuff(update_id):
 
             # respond if this is a message containing text
             if 'text' in message:
+                # Get text of the message
                 messagetext = str(message['text'])
 
                 # Skip anything that isn't a slash command
                 if not messagetext.startswith('/'):
                     continue
 
+                # Get chat id, which is used to send the return message
                 chat_id = message['chat']['id']
 
+                # Show help text 
                 if messagetext == '/help':
                     get_help(chat_id)
+                # get a image via google image search API 
                 elif messagetext.startswith('/get'):
-                    message_parts = messagetext.split(' ')
-                    message_parts.pop(0)
-                    search_terms = ' '.join(message_parts)
-                    image_url = image_search(search_terms)
-                    if image_url:
-                        logging.debug("Supposedly URL: %s" % image_url)
-                        file_name = download_file(image_url)
-                        if not file_name:
-                            logging.critical("%s does not exist" % file_name)
-
-                        logging.debug("file: %s" % file_name)
-                        # Try to be smart about the content type
-                        try:
-                            if file_name.endswith('gif'):
-                                send_document(chat_id, file_name)
-                            elif file_name.endswith('png') or file_name.endswith('jpg') or file_name.endswith('jpeg'):
-                                send_photo(chat_id, file_name)
-                            else:
-                                send_simple_message(chat_id, "I have failed to find a picture for %s." % search_terms)
-                        except:
-                            send_simple_message(chat_id, "I have failed to find a picture for %s." % search_terms)
-                    else:
-                        send_simple_message(chat_id, "I have failed to find a picture for %s." % search_terms)
+                    result = get_image(chat_id, messagetext)
+                    logging.info("Got Image: %s" % result)
+                # Is it a statically set item?
                 else:
-                    command = messagetext.strip('/')
-                    if command in keyword_map:
-                        file_ext = keyword_map[command].split('.')[-1]
-                        if file_ext in ['jpg', 'jpeg', 'png']:
-                            file_name = download_file(keyword_map[command])
-                            logging.info("Sending photo %s" % file_name)
-                            send_photo(chat_id, file_name)
-                        elif file_ext in ['gif']:
-                            file_name = download_file(keyword_map[command])
-                            logging.info("Sending gif %s" % file_name)
-                            send_document(chat_id, file_name)
-                        else:
-                            return_message = get_redirect_url(keyword_map[command])
-                            send_simple_message(chat_id, return_message)
-                    else:
-                        continue
+                    result =  get_static(chat_id, messagetext)
+                    logging.info("Got Image: %s" % result)
+                    continue
 
     return update_id
 
