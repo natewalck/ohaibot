@@ -56,7 +56,7 @@ keyword_map = { 'cantbrain': 'https://dl.dropboxusercontent.com/u/11466/meme/can
 def load_config():
     try:
         with open('ohaibot.yml', 'r') as infile:
-            config = (yaml.load(infile))
+            config = (yaml.safe_load(infile))
     except:
         print("Failed to load config!")
         exit(1)
