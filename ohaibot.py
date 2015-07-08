@@ -12,6 +12,7 @@ import shutil
 import os.path
 from fake_useragent import UserAgent
 import re
+import yaml
 
 try:
     from config import token
@@ -26,6 +27,7 @@ logging.basicConfig(filename='ohaibot.log',
 bot_url = 'https://api.telegram.org/bot' + token + '/'
 offset_file = 'offset.txt'
 update_id = 0
+global config
 
 # Map of keywords to URLs, used for static content (non-searched)
 keyword_map = { 'cantbrain': 'https://dl.dropboxusercontent.com/u/11466/meme/cantbrain.jpg',
@@ -49,6 +51,27 @@ keyword_map = { 'cantbrain': 'https://dl.dropboxusercontent.com/u/11466/meme/can
                 'overrustled': 'https://dl.dropboxusercontent.com/u/11466/meme/jimmiesrustledmaximum.jpg',
                 'random': 'http://www.reddit.com/r/random',
                 }
+
+'''Load config file'''
+def load_config():
+    try:
+        with open('ohaibot.yml', 'r') as infile:
+            config = (yaml.load(infile))
+    except:
+        print("Failed to load config!")
+        exit(1)
+
+    return config
+
+
+'''Save config file, return True if successful'''
+def save_config(new_config):
+    try:
+        with open('ohaibot.yml', 'w') as outfile:
+            outfile.write(yaml.dump(new_config, default_flow_style=False))
+    except:
+        print("Failed to save config, using old config")
+        result = False
 
 
 '''Send a text only message, useful for help, feedback and errors'''
@@ -241,6 +264,13 @@ def get_static(chat_id, messagetext):
 
 '''All bot logic happens here and calls out to functions'''
 def do_bot_stuff(update_id):
+    #global config
+    #old_config = config
+    #config['test'] = 'test'
+    #if not save_config(config):
+    #    config = old_config
+    #print(config)
+
     try:
         data = urllib.parse.urlencode({'offset': format(update_id),
                                        'limit': '100', 'timeout': '60'})
@@ -295,6 +325,8 @@ def do_bot_stuff(update_id):
 
 '''Main program loop, handles timing and long polling'''
 def main():
+    #global config
+    #config = load_config()
     # make sure the offset file exists and contains an integer
     try:
         file = open(offset_file, 'rt')
