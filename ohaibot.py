@@ -154,6 +154,24 @@ def image_search(search_term):
     return search_results
 
 
+def save_keyword(messagetext):
+    try:
+        keyword, url = messagetext.split(' ')[1:]
+    except:
+        logging.info("Invalid command!") 
+        keyword = None
+
+    # todo: actually save the keyword and url to the config dictionary and write
+    # it out
+
+    if keyword:
+        logging.info("Key: %s Value: %s" % (keyword, url))
+        return keyword
+    else:
+        logging.info("Invalid command, could not save it")
+        return keyword
+
+
 ''' Downloads the given file url to the cache folder'''
 def download_file(url):
     file_name = url.split('/')[-1]
@@ -306,6 +324,16 @@ def do_bot_stuff(update_id):
                 # Show help text 
                 if messagetext == '/help':
                     get_help(chat_id)
+                # Add a static keyword to the bot (/ketchup for example).
+                elif messagetext.startswith('/addkeyword'):
+                    logging.debug("Adding a keyword")
+                    result = save_keyword(messagetext)
+                    if result:
+                        send_simple_message(chat_id, "Saved Keyword %s" % result)
+                    else:
+                        # todo: Berate them for doing it wrong
+                        send_simple_message(chat_id, """Failed to save keyword, you are
+                                             probably doing it wrong""")
                 # get a image via google image search API 
                 elif messagetext.startswith('/get'):
                     result, term = get_image(chat_id, messagetext)
