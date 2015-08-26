@@ -9,6 +9,4 @@ This bot is based upon ZombieBot (https://github.com/JochemKuijpers/ZombieBot). 
 
 Please note that this bot is meant to run in privacy mode. You can enable privacy mode for your own bot by talking to @BotFather: https://telegram.me/BotFather?setprivacy
 
-If you want to run this code for your own bot, create a second file `config.py` and add your own token:
-
-    token = 'your_token_here' 
+If you want to run this code for your own bot, add your bot token and any static keyword/url pairs you want to ohaibot.json.
