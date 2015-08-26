@@ -10,6 +10,7 @@ import requests
 import os.path
 from fake_useragent import UserAgent
 import re
+import giphypop
 
 logging.basicConfig(filename='ohaibot.log',
                     format='%(asctime)s %(levelname)s %(message)s',
@@ -118,9 +119,13 @@ def save_keyword(message):
         return keyword
 
 
-def download_file(url):
+def download_file(url, name=None):
     ''' Downloads the given file url to the cache folder'''
-    file_name = url.split('/')[-1]
+    if name:
+        file_name = name
+    else:
+        file_name = url.split('/')[-1]
+
     ua = UserAgent()
     # todo create cache folder if it does not already exist.
     cache_folder = 'cache'
@@ -173,14 +178,14 @@ def static_command(message):
     '''This handles all the static commands'''
     get_static(message)
 
-@bot.message_handler(commands=['get'])
+@bot.message_handler(commands=['get', 'image'])
 def google_image_search(message):
     '''Do a google image search and send it to chat'''
     result, term = get_image(message)
     if result:
         logging.info("Got Image: %s" % result)
     else:
-        return_message = "Couldn't find result for %s" % term
+        return_message = "Couldn't find image for %s" % term
         bot.send_message(message.chat.id, return_message)
 
 @bot.message_handler(commands=['add'])
@@ -196,11 +201,36 @@ def add_keyword_to_config(message):
             message.chat.id, """Failed to save keyword, you are
                              probably doing it wrong""")
 
+@bot.message_handler(commands=['gif', 'getgif'])
+def giphy_search(message):
+    '''Search giphy for a gif and post it to chat'''
+    file_name, term = get_gif(message)
+    if file_name:
+        logging.info("Got gif: %s" % file_name)
+        bot.send_document(message.chat.id, open(file_name, 'rb'))
+    else:
+        bot.send_message(message.chat.id, "Couldn't find gif for %s" % term)
+
+
+def get_gif(message):
+    giphy = giphypop.Giphy()
+    message_parts = message.text.split(' ')
+    message_parts.pop(0)
+    search_terms = ' '.join(message_parts)
+    try:
+        giphy_results = [x for x in giphy.search(search_terms)]
+        real_url = get_redirect_url(giphy_results[0].media_url)
+        gif_name =  "{}.gif".format(giphy_results[0].id)
+        result = download_file(real_url, gif_name )
+    except:
+        result = None
+
+    return result, search_terms
+
 
 def get_image(message):
     '''Gets and sends an image based on message text'''
-    messagetext = message.text
-    message_parts = messagetext.split(' ')
+    message_parts = message.text.split(' ')
     message_parts.pop(0)
     search_terms = ' '.join(message_parts)
     search_results = image_search(search_terms)
