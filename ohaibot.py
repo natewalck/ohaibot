@@ -99,6 +99,7 @@ def image_search(search_term):
 
 def save_keyword(message):
     '''Add a custom keyword that maps to a URL'''
+    global keyword_map
     try:
         keyword, url = message.text.split(' ')[1:]
     except:
@@ -110,9 +111,9 @@ def save_keyword(message):
         config['keywordmap'][keyword] = url
         if save_config(config):
             logging.info("Config saved")
+            keyword_map = config['keywordmap']
         else:
             bot.send_message(message.chat.id, "Failed to save config")
-        keyword_map = config['keywordmap']
         return keyword
     else:
         logging.info("Invalid command, could not save it")
