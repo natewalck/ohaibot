@@ -1,4 +1,4 @@
 requests
 fake-useragent
 giphypop
-pyyaml
+pyTelegramBotAPI

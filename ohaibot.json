@@ -1,0 +1,7 @@
+{
+  "keywordmap": {
+    "KEYWORD1": "URL1",
+    "KEYWORD2": "URL2",
+  },
+  "bot_token": "PUT_TOKEN_HERE"
+}
